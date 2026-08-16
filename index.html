@@ -212,7 +212,9 @@
 
     try {
       let html = "";
-      for (const cat of CATEGORIES) {
+      for (let i = 0; i < CATEGORIES.length; i++) {
+        const cat = CATEGORIES[i];
+        if (i > 0) await new Promise(r => setTimeout(r, 1200)); // 요청 간 1.2초 대기 (요금제 제한 때문)
         const targetUrl = `https://gnews.io/api/v4/top-headlines?category=${cat.key}&lang=ko&country=kr&max=4&apikey=${apiKey}`;
         const url = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`;
         const res = await fetch(url);
