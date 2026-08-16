@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오늘의 아침 뉴스</title>
+<style>
+  /* ===== 여기서 색깔/디자인을 바꿀 수 있어요 ===== */
+  :root {
+    --bg: #FFF6EC;
+    --card: #FFFFFF;
+    --accent: #FF8A5B;
+    --accent-soft: #FFD8B8;
+    --text: #3A2E2A;
+    --text-soft: #8A7A72;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 60px;
+  }
+
+  .wrap { max-width: 640px; margin: 0 auto; }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  header .emoji { font-size: 40px; }
+
+  header h1 {
+    font-size: 24px;
+    margin: 8px 0 4px;
+  }
+
+  header .date {
+    color: var(--text-soft);
+    font-size: 14px;
+  }
+
+  /* API 키 입력 영역 */
+  .key-box {
+    background: var(--card);
+    border: 2px dashed var(--accent-soft);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .key-box input {
+    flex: 1;
+    min-width: 160px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--accent-soft);
+    font-size: 14px;
+  }
+
+  .key-box button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .key-box button:hover { background: #E8703F; }
+
+  .key-hint {
+    font-size: 12px;
+    color: var(--text-soft);
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .category-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 24px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .news-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text);
+    transition: transform 0.15s;
+  }
+
+  .news-card:hover { transform: translateY(-2px); }
+
+  .news-thumb {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: var(--accent-soft);
+    flex-shrink: 0;
+  }
+
+  .news-info .news-title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0 0 4px;
+  }
+
+  .news-info .news-source {
+    font-size: 12px;
+    color: var(--text-soft);
+  }
+
+  .status {
+    text-align: center;
+    color: var(--text-soft);
+    padding: 20px;
+    font-size: 14px;
+  }
+
+  .refresh-btn {
+    display: block;
+    margin: 20px auto 0;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="emoji">☕️📰</div>
+    <h1>오늘의 아침 뉴스</h1>
+    <div class="date" id="today-date"></div>
+  </header>
+
+  <!-- API 키 입력: 한 번 넣으면 이 페이지를 쓰는 동안 기억해요 -->
+  <div class="key-box">
+    <input type="text" id="api-key-input" placeholder="여기에 GNews API 키를 붙여넣으세요">
+    <button onclick="startFetch()">뉴스 불러오기</button>
+    <div class="key-hint">키는 저장되지 않아요. 매일 열 때마다 다시 붙여넣거나, 코드의 DEFAULT_KEY에 직접 채워두면 자동으로 불러와요.</div>
+  </div>
+
+  <div id="news-container"></div>
+
+  <button class="refresh-btn" id="refresh-btn" style="display:none" onclick="startFetch()">🔄 새로고침</button>
+
+</div>
+
+<script>
+  // ===== 여기에 발급받은 키를 넣으면 매번 입력 안 해도 자동으로 불러와요 =====
+  const DEFAULT_KEY = "927c6dd5314b9a16a86ec4ef82d9a1ad";
+
+  // 보고 싶은 카테고리들 (원하는 대로 추가/삭제 가능)
+  // 선택 가능: general, world, nation, business, technology, entertainment, sports, science, health
+  const CATEGORIES = [
+    { key: "general", label: "📌 종합" },
+    { key: "technology", label: "💻 IT/기술" },
+    { key: "business", label: "💰 경제" }
+  ];
+
+  const container = document.getElementById("news-container");
+  const refreshBtn = document.getElementById("refresh-btn");
+  const keyInput = document.getElementById("api-key-input");
+
+  // 오늘 날짜 표시
+  const today = new Date();
+  document.getElementById("today-date").textContent =
+    today.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+
+  if (DEFAULT_KEY) {
+    keyInput.value = DEFAULT_KEY;
+    startFetch();
+  }
+
+  async function startFetch() {
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) {
+      container.innerHTML = '<div class="status">API 키를 먼저 입력해주세요 🙏</div>';
+      return;
+    }
+
+    container.innerHTML = '<div class="status">뉴스를 불러오는 중이에요... ⏳</div>';
+    refreshBtn.style.display = "none";
+
+    try {
+      let html = "";
+      for (const cat of CATEGORIES) {
+        const url = `https://gnews.io/api/v4/top-headlines?category=${cat.key}&lang=ko&country=kr&max=4&apikey=${apiKey}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`카테고리 ${cat.label} 불러오기 실패 (${res.status})`);
+        const data = await res.json();
+
+        html += `<div class="category-title">${cat.label}</div>`;
+
+        if (!data.articles || data.articles.length === 0) {
+          html += '<div class="status">기사를 찾지 못했어요</div>';
+          continue;
+        }
+
+        data.articles.forEach(article => {
+          const img = article.image || "";
+          html += `
+            <a class="news-card" href="${article.url}" target="_blank" rel="noopener">
+              ${img ? `<img class="news-thumb" src="${img}" onerror="this.style.display='none'">` : ""}
+              <div class="news-info">
+                <p class="news-title">${escapeHtml(article.title)}</p>
+                <div class="news-source">${escapeHtml(article.source?.name || "")}</div>
+              </div>
+            </a>`;
+        });
+      }
+      container.innerHTML = html;
+      refreshBtn.style.display = "block";
+    } catch (err) {
+      container.innerHTML = `<div class="status">오류가 발생했어요 😢<br>${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/[&<>"']/g, m => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[m]));
+  }
+</script>
+</body>
+</html>
