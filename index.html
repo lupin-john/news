@@ -214,7 +214,7 @@
       let html = "";
       for (const cat of CATEGORIES) {
         const targetUrl = `https://gnews.io/api/v4/top-headlines?category=${cat.key}&lang=ko&country=kr&max=4&apikey=${apiKey}`;
-        const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const url = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`카테고리 ${cat.label} 불러오기 실패 (${res.status})`);
         const data = await res.json();
