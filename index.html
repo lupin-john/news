@@ -313,7 +313,16 @@
         // 유명 언론사 기사를 우선으로 정렬 (목록에 없는 곳은 뒤로)
         const sorted = [...data.articles]
           .filter(a => a.title && a.title.trim())
-          .filter(a => a.title.trim().toLowerCase() !== (a.source?.name || "").trim().toLowerCase())
+          .filter(a => {
+            const title = a.title.trim();
+            const source = (a.source?.name || "").trim();
+            if (!source) return true;
+            // 제목이 언론사 이름을 포함/일치하거나, 내용이 거의 없는 항목은 실제 기사가 아닐 가능성이 높아 제외
+            if (title.toLowerCase() === source.toLowerCase()) return false;
+            if (title.replace(/\s/g, "").includes(source.replace(/\s/g, ""))) return false;
+            if (!a.description && !a.content) return false;
+            return true;
+          })
           .sort((a, b) => {
             const an = MAJOR_SOURCES.some(s => (a.source?.name || "").includes(s)) ? 0 : 1;
             const bn = MAJOR_SOURCES.some(s => (b.source?.name || "").includes(s)) ? 0 : 1;
